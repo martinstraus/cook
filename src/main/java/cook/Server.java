@@ -9,19 +9,30 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class Server {
+
     private final int port;
     private final List<Rule> rules;
-    private ServerSocket serverSocket;
+    private final AtomicBoolean running;
 
     public Server(int port, List<Rule> rules) {
         this.port = port;
         this.rules = rules;
+        this.running = new AtomicBoolean(false);
     }
 
     public void run() throws IOException {
-        serverSocket = new ServerSocket(port);
+        running.set(true);
+        try (var serverSocket = new ServerSocket(port)) {
+            while (running.get()) {
+                waitForClientAndServe(serverSocket);
+            }
+        }
+    }
+
+    private void waitForClientAndServe(ServerSocket serverSocket) throws IOException {
         var clientSocket = serverSocket.accept();
         try (
             BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()))) {
@@ -55,9 +66,9 @@ public class Server {
         }
         return new Request(method, uri, null, null, null);
     }
-    
+
     private Optional<Rule> handlerFor(Request request) {
-        return rules.stream().filter((r) ->r.test(request)).findFirst();
+        return rules.stream().filter((r) -> r.test(request)).findFirst();
     }
 
     private void handle(Socket clientSocket, RequestHandler handler, Request request) throws IOException {
@@ -68,6 +79,6 @@ public class Server {
     }
 
     public void stop() throws IOException {
-        serverSocket.close();
+        running.set(false);
     }
 }
