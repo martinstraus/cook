@@ -8,7 +8,6 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse.BodyHandlers;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
-import java.util.List;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.Callable;
@@ -29,11 +28,9 @@ public class SimpleTest {
         var port = randomPort();
         var server = runServer(
             port,
-            asList(
-                new SimpleRule(
-                    RequestMatchers.uriEqualsCaseSensitive("/ping"), 
-                    new TextHandler(200, "OK", "pong")
-                )
+            new SimpleRule(
+                RequestMatchers.uriEqualsCaseSensitive("/ping"),
+                new TextHandler(200, "OK", "pong")
             )
         );
         try {
@@ -60,7 +57,7 @@ public class SimpleTest {
     @Timeout(5000)
     public void notFoundForRandomResource() throws IOException, URISyntaxException, InterruptedException {
         var port = randomPort();
-        var server = runServer(port, emptyList());
+        var server = runServer(port);
         try {
             try (var client = HttpClient.newHttpClient()) {
                 var request = HttpRequest.newBuilder(
@@ -84,8 +81,8 @@ public class SimpleTest {
         return RANDOM.nextInt(8080, 8090);
     }
 
-    private Server runServer(int port, List<Rule> rules) {
-        var server = new Server(port, rules);
+    private Server runServer(int port, Rule... rules) {
+        var server = new Server(port, rules != null ? asList(rules) : emptyList());
         var runServer = (Callable) () -> {
             try {
                 server.run();
