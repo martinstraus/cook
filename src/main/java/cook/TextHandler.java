@@ -14,7 +14,12 @@ public class TextHandler implements RequestHandler {
 
     @Override
     public String handle(Request request) {
-        return String.format("HTTP/1.1 %1$d %2$s\r\nContent-Type: text/plain\r\n\r\n%3$s", status, reason, body);
+        return String.format("HTTP/1.1 %1$d %2$s\r\nContent-Type: text/plain\r\nContent-length: %3$d\r\n\r\n%4$s",
+            status,
+            reason,
+            body.length(),
+            body
+        );
     }
 
 }
