@@ -3,7 +3,7 @@ package cook;
 import java.util.Set;
 
 public class Request {
-    
+
     private final Methods method;
     private final String uri;
     private final String host;
@@ -17,9 +17,13 @@ public class Request {
         this.headers = headers;
         this.body = body;
     }
-    
-    public String uri() {
-        return uri;
+
+    public boolean hasMethod(Methods method) {
+        return this.method == method;
+    }
+
+    public boolean uriEqualsMatchCase(String test) {
+        return uri.equals(test);
     }
 
 }
