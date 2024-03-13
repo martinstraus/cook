@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class Server {
+public class Server implements AutoCloseable {
 
     private final int port;
     private final List<Rule> rules;
@@ -78,7 +78,8 @@ public class Server {
         }
     }
 
-    public void stop() throws IOException {
+    @Override
+    public void close() throws Exception {
         running.set(false);
     }
 }

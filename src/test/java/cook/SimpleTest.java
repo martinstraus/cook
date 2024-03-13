@@ -24,16 +24,15 @@ public class SimpleTest {
 
     @Test
     @Timeout(5000)
-    public void testRunsAndReceivesPing() throws IOException, URISyntaxException, InterruptedException {
+    public void testRunsAndReceivesPing() throws IOException, URISyntaxException, InterruptedException, Exception {
         var port = randomPort();
-        var server = runServer(
+        try (var server = runServer(
             port,
             new SimpleRule(
                 RequestMatchers.uriEqualsCaseSensitive("/ping"),
                 new TextHandler(200, "OK", "pong")
             )
-        );
-        try {
+        )) {
             try (var client = HttpClient.newHttpClient()) {
                 var request = HttpRequest.newBuilder(
                     new URI(
@@ -46,19 +45,14 @@ public class SimpleTest {
             } catch (IOException ex) {
                 fail("Error sending request.", ex);
             }
-        } finally {
-            if (server != null) {
-                server.stop();
-            }
-        }
+        } 
     }
 
     @Test
     @Timeout(5000)
-    public void notFoundForRandomResource() throws IOException, URISyntaxException, InterruptedException {
+    public void notFoundForRandomResource() throws IOException, URISyntaxException, InterruptedException, Exception {
         var port = randomPort();
-        var server = runServer(port);
-        try {
+        try (var server = runServer(port)) {
             try (var client = HttpClient.newHttpClient()) {
                 var request = HttpRequest.newBuilder(
                     new URI(
@@ -69,10 +63,6 @@ public class SimpleTest {
                 assertEquals(404, response.statusCode());
             } catch (IOException ex) {
                 fail("Error sending request.", ex);
-            }
-        } finally {
-            if (server != null) {
-                server.stop();
             }
         }
     }
