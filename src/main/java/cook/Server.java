@@ -7,6 +7,8 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import static java.util.Arrays.asList;
+import static java.util.Collections.emptyList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -16,6 +18,10 @@ public class Server implements AutoCloseable {
     private final int port;
     private final List<Rule> rules;
     private final AtomicBoolean running;
+
+    public Server(int port, Rule... rules) {
+        this(port, rules != null ? asList(rules) : emptyList());
+    }
 
     public Server(int port, List<Rule> rules) {
         this.port = port;

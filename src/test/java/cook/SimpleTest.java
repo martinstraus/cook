@@ -26,7 +26,7 @@ public class SimpleTest {
     @Timeout(5000)
     public void testRunsAndReceivesPing() throws IOException, URISyntaxException, InterruptedException, Exception {
         var port = randomPort();
-        try (var server = runServer(
+        try (var server = runServerInAnotherThread(
             port,
             new SimpleRule(
                 RequestMatchers.uriEqualsCaseSensitive("/ping"),
@@ -52,7 +52,7 @@ public class SimpleTest {
     @Timeout(5000)
     public void notFoundForRandomResource() throws IOException, URISyntaxException, InterruptedException, Exception {
         var port = randomPort();
-        try (var server = runServer(port)) {
+        try (var server = runServerInAnotherThread(port)) {
             try (var client = HttpClient.newHttpClient()) {
                 var request = HttpRequest.newBuilder(
                     new URI(
@@ -71,8 +71,8 @@ public class SimpleTest {
         return RANDOM.nextInt(8080, 8090);
     }
 
-    private Server runServer(int port, Rule... rules) {
-        var server = new Server(port, rules != null ? asList(rules) : emptyList());
+    private Server runServerInAnotherThread(int port, Rule... rules) {
+        var server = new Server(port, rules);
         var runServer = (Callable) () -> {
             try {
                 server.run();
