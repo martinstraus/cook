@@ -72,7 +72,7 @@ public class SimpleTest {
     }
 
     private Server runServerInAnotherThread(int port, Rule... rules) {
-        var server = new Server(port, rules);
+        var server = new Server(port, 1, rules != null ? asList(rules) : emptyList());
         var runServer = (Callable) () -> {
             try {
                 server.run();

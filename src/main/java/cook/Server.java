@@ -11,20 +11,22 @@ import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class Server implements AutoCloseable {
 
     private final int port;
+    private final int threads;
     private final List<Rule> rules;
     private final AtomicBoolean running;
 
-    public Server(int port, Rule... rules) {
-        this(port, rules != null ? asList(rules) : emptyList());
-    }
-
-    public Server(int port, List<Rule> rules) {
+    public Server(int port, int threads, List<Rule> rules) {
         this.port = port;
+        this.threads = threads;
         this.rules = rules;
         this.running = new AtomicBoolean(false);
     }
@@ -32,26 +34,34 @@ public class Server implements AutoCloseable {
     public void run() throws IOException {
         running.set(true);
         try (var serverSocket = new ServerSocket(port)) {
-            while (running.get()) {
-                waitForClientAndServe(serverSocket);
+            var pool = Executors.newFixedThreadPool(threads);
+            for (int i = 0; i < threads; i++) {
+                pool.submit(() -> waitForClientAndServe(serverSocket));
             }
+            while (running.get()) {
+                try {
+                    pool.awaitTermination(1, TimeUnit.SECONDS);
+                } catch (InterruptedException ex) {
+                    Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
+                }
+            }
+        } finally {
+            System.out.println("Shutting down...");
         }
     }
 
-    private void waitForClientAndServe(ServerSocket serverSocket) throws IOException {
-        var clientSocket = serverSocket.accept();
-        try (
-            BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()))) {
-            Request request = readRequest(reader);
-            Optional<Rule> rule = handlerFor(request);
-            RequestHandler handler = rule.isPresent() ? (RequestHandler) rule.get() : NOT_FOUND;
-            handle(clientSocket, handler, request);
-        } catch (IOException e) {
-            System.err.println("Error reading from or writing to client: " + e.getMessage());
-        } finally {
-            // Close the client socket
-            clientSocket.close();
-            System.out.println("Client disconnected");
+    private void waitForClientAndServe(ServerSocket serverSocket) {
+        while (running.get()) {
+            try (
+                var clientSocket = serverSocket.accept();
+                var reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()))) {
+                Request request = readRequest(reader);
+                Optional<Rule> rule = handlerFor(request);
+                RequestHandler handler = rule.isPresent() ? (RequestHandler) rule.get() : NOT_FOUND;
+                handle(clientSocket, handler, request);
+            } catch (IOException e) {
+                System.err.println("Error reading from or writing to client: " + e.getMessage());
+            }
         }
     }
 
@@ -87,5 +97,6 @@ public class Server implements AutoCloseable {
     @Override
     public void close() throws Exception {
         running.set(false);
+
     }
 }

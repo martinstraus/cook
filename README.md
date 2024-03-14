@@ -17,7 +17,7 @@ It has no third-party dependencies, it loads blazingly fast.
 
 A server accepts requests in a port, like this:
 
-    try (var server = new cook.Server(8080)) {
+    try (var server = new cook.Server(8080, 1)) {
         server.run();
     }
 
@@ -58,7 +58,7 @@ Here's he simplest possible example, without using any helper function or class:
             return  "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\npong";
         }
     };
-    try (var server = new cook.Server(8080, pingRule)) {
+    try (var server = new cook.Server(8080, 1, asList(pingRule))) {
         server.run();
     }
 
