@@ -1,16 +1,22 @@
 package cook;
 
+import cook.Header;
+import cook.Methods;
+import cook.Request;
+import cook.RequestHandler;
 import static cook.Responses.NOT_FOUND;
-import java.io.BufferedReader;
+import cook.Rule;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
-import static java.util.Arrays.asList;
-import static java.util.Collections.emptyList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Scanner;
+import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -53,9 +59,8 @@ public class Server implements AutoCloseable {
     private void waitForClientAndServe(ServerSocket serverSocket) {
         while (running.get()) {
             try (
-                var clientSocket = serverSocket.accept();
-                var reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()))) {
-                Request request = readRequest(reader);
+                var clientSocket = serverSocket.accept(); var inputStream = clientSocket.getInputStream(); var inputStreamReader = new InputStreamReader(inputStream);) {
+                Request request = readRequest(inputStream, inputStreamReader);
                 Optional<Rule> rule = handlerFor(request);
                 RequestHandler handler = rule.isPresent() ? (RequestHandler) rule.get() : NOT_FOUND;
                 handle(clientSocket, handler, request);
@@ -66,21 +71,43 @@ public class Server implements AutoCloseable {
     }
 
     /* This will look really nasty for a while... */
-    private Request readRequest(BufferedReader reader) throws IOException {
-        StringBuilder requestBuilder = new StringBuilder();
+    private Request readRequest(InputStream stream, InputStreamReader reader) throws IOException {
+        int available = stream.available();
+        final char[] buffer = new char[available];
 
-        String line = reader.readLine();
-        requestBuilder.append(line).append("\r\n");
+        reader.read(buffer);
+        var request = new String(buffer);
+        try (var scanner = new Scanner(request)) {
+            scanner.useDelimiter("\r\n");
+            String line = scanner.next();
 
-        String[] parts = line.split(" ");
-        var method = Methods.valueOf(parts[0]);
-        var uri = parts[1];
+            String[] parts = line.split(" ");
+            var method = Methods.valueOf(parts[0]);
+            var uri = parts[1];
 
-        while (line != null && !line.isEmpty()) {
-            requestBuilder.append(line).append("\r\n");
-            line = reader.readLine();
+            Set<Header> headers = new HashSet<>();
+            while (scanner.hasNext()) {
+                line = scanner.next();
+                if (line.isBlank()) {
+                    break;
+                }
+                var index = line.indexOf(":");
+                var key = line.substring(1, index).trim();
+                var value = line.substring(index + 1).trim();
+                headers.add(new Header(key, value));
+            }
+
+            String body = null;
+            if (scanner.hasNext()) {
+                StringBuilder b = new StringBuilder();
+                while (scanner.hasNext()) {
+                    b.append(scanner.next());
+                }
+                body = b.toString();
+            }
+            return new Request(method, uri, null, headers, body);
         }
-        return new Request(method, uri, null, null, null);
+
     }
 
     private Optional<Rule> handlerFor(Request request) {

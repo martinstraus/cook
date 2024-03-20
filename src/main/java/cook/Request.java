@@ -25,5 +25,9 @@ public class Request {
     public boolean uriEqualsMatchCase(String test) {
         return uri.equals(test);
     }
+    
+    public String body() {
+        return body;
+    }
 
 }
