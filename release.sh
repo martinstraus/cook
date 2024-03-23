@@ -24,9 +24,8 @@ then
     exit 2
 fi
 
-git add pom.xml
 mvn versions:commit
-
+git add pom.xml
 git commit -m "Release version ${version}."
 git push 
 
