@@ -1,17 +1,13 @@
 package cook;
 
-import cook.Header;
-import cook.Methods;
-import cook.Request;
-import cook.RequestHandler;
 import static cook.Responses.NOT_FOUND;
-import cook.Rule;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import static java.util.Collections.emptyList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -30,6 +26,10 @@ public class Server implements AutoCloseable {
     private final List<Rule> rules;
     private final Callback callback;
     private final AtomicBoolean running;
+    
+    public Server(int port) {
+        this(port, 1, new NoOpCallback(), emptyList());
+    }
 
     public Server(int port, int threads, Callback callback, List<Rule> rules) {
         this.port = port;
