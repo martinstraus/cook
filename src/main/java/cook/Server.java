@@ -28,12 +28,14 @@ public class Server implements AutoCloseable {
     private final int port;
     private final int threads;
     private final List<Rule> rules;
+    private final Callback callback;
     private final AtomicBoolean running;
 
-    public Server(int port, int threads, List<Rule> rules) {
+    public Server(int port, int threads, Callback callback, List<Rule> rules) {
         this.port = port;
         this.threads = threads;
         this.rules = rules;
+        this.callback = callback;
         this.running = new AtomicBoolean(false);
     }
 
@@ -44,15 +46,16 @@ public class Server implements AutoCloseable {
             for (int i = 0; i < threads; i++) {
                 pool.submit(() -> waitForClientAndServe(serverSocket));
             }
+            callback.started();
             while (running.get()) {
                 try {
-                    pool.awaitTermination(1, TimeUnit.SECONDS);
+                    pool.awaitTermination(10, TimeUnit.MILLISECONDS);
                 } catch (InterruptedException ex) {
                     Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
                 }
             }
         } finally {
-            System.out.println("Shutting down...");
+            callback.finished();
         }
     }
 

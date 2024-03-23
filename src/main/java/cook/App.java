@@ -13,6 +13,7 @@ public class App {
         new Server(
             8080,
             10,
+            new NoOpCallback(),
             asList(
                 new SimpleRule(
                     uriEqualsCaseSensitive("/ping"),
