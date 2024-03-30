@@ -1,6 +1,9 @@
 package cook;
 
 import static cook.Responses.NOT_FOUND;
+import static cook.Responses.badRequest;
+import static cook.Responses.internalServerError;
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -11,13 +14,10 @@ import static java.util.Collections.emptyList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
-import java.util.Scanner;
 import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 public class Server implements AutoCloseable {
 
@@ -26,7 +26,7 @@ public class Server implements AutoCloseable {
     private final List<Rule> rules;
     private final Callback callback;
     private final AtomicBoolean running;
-    
+
     public Server(int port) {
         this(port, 1, new NoOpCallback(), emptyList());
     }
@@ -41,76 +41,93 @@ public class Server implements AutoCloseable {
 
     public void run() throws IOException {
         running.set(true);
+        var threadPool = Executors.newFixedThreadPool(threads);
         try (var serverSocket = new ServerSocket(port)) {
-            var pool = Executors.newFixedThreadPool(threads);
-            for (int i = 0; i < threads; i++) {
-                pool.submit(() -> waitForClientAndServe(serverSocket));
-            }
             callback.started();
             while (running.get()) {
-                try {
-                    pool.awaitTermination(10, TimeUnit.MILLISECONDS);
-                } catch (InterruptedException ex) {
-                    Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
-                }
+                var clientSocket = serverSocket.accept();
+                clientSocket.setSoTimeout(100);
+                threadPool.submit(() -> serve(clientSocket));
+            }
+            try {
+                threadPool.awaitTermination(100, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException ex) {
+
             }
         } finally {
             callback.finished();
         }
     }
 
-    private void waitForClientAndServe(ServerSocket serverSocket) {
-        while (running.get()) {
-            try (
-                var clientSocket = serverSocket.accept(); var inputStream = clientSocket.getInputStream(); var inputStreamReader = new InputStreamReader(inputStream);) {
-                Request request = readRequest(inputStream, inputStreamReader);
+    private void serve(Socket clientSocket) {
+        try {
+            try {
+                Request request = readRequest(clientSocket.getInputStream());
                 Optional<Rule> rule = handlerFor(request);
-                RequestHandler handler = rule.isPresent() ? (RequestHandler) rule.get() : NOT_FOUND;
+                RequestHandler handler = rule.isPresent() ? rule.get() : NOT_FOUND;
                 handle(clientSocket, handler, request);
-            } catch (IOException e) {
-                System.err.println("Error reading from or writing to client: " + e.getMessage());
+            } catch (BadRequest e) {
+                handle(clientSocket, badRequest(e), null);
+            }
+        } catch (Throwable t) {
+            try {
+                handle(clientSocket, internalServerError(t), null);
+            } catch (IOException ex) {
+                ex.printStackTrace(System.err);
+            }
+        } finally {
+            try {
+                clientSocket.close();
+            } catch (IOException ex) {
+                ex.printStackTrace(System.err);
             }
         }
     }
 
     /* This will look really nasty for a while... */
-    private Request readRequest(InputStream stream, InputStreamReader reader) throws IOException {
-        int available = stream.available();
-        final char[] buffer = new char[available];
+    private Request readRequest(InputStream stream) throws IOException, BadRequest {
+        BufferedReader reader = new BufferedReader(new InputStreamReader(stream));
 
-        reader.read(buffer);
-        var request = new String(buffer);
-        try (var scanner = new Scanner(request)) {
-            scanner.useDelimiter("\r\n");
-            String line = scanner.next();
-
-            String[] parts = line.split(" ");
-            var method = Methods.valueOf(parts[0]);
-            var uri = parts[1];
-
-            Set<Header> headers = new HashSet<>();
-            while (scanner.hasNext()) {
-                line = scanner.next();
-                if (line.isBlank()) {
-                    break;
-                }
-                var index = line.indexOf(":");
-                var key = line.substring(1, index).trim();
-                var value = line.substring(index + 1).trim();
-                headers.add(new Header(key, value));
+        Request.RequestLine requestLine = requestLine(reader);
+        Set<Header> headers = headers(reader);
+        String body = null;
+        if ((requestLine.method() == Methods.POST || requestLine.method() == Methods.PUT)) {
+            Header contentLength = headers
+                .stream()
+                .filter((h) -> h.name().equalsIgnoreCase("Content-length"))
+                .findFirst()
+                .orElseThrow(() -> new BadRequest("Request does not specify content length."));
+            byte[] buffer = new byte[contentLength.intValue()];
+            int read = stream.read(buffer);
+            if (read != contentLength.intValue()) {
+                throw new BadRequest("Body length does not match value of Content-length header.");
             }
-
-            String body = null;
-            if (scanner.hasNext()) {
-                StringBuilder b = new StringBuilder();
-                while (scanner.hasNext()) {
-                    b.append(scanner.next());
-                }
-                body = b.toString();
-            }
-            return new Request(method, uri, null, headers, body);
+            body = new String(buffer);
         }
+        return new Request(requestLine, headers, body);
 
+    }
+
+    private Request.RequestLine requestLine(BufferedReader reader) throws IOException {
+        String[] parts = reader.readLine().split(" ");
+        return new Request.RequestLine(
+            Methods.valueOf(parts[0]),
+            parts[1],
+            parts[2]
+        );
+    }
+
+    private Set<Header> headers(BufferedReader reader) throws IOException {
+        Set<Header> headers = new HashSet<>();
+        String line = reader.readLine();
+        while (line != null && !line.trim().equals("")) {
+            var index = line.indexOf(":");
+            var key = line.substring(0, index).trim();
+            var value = line.substring(index + 1).trim();
+            headers.add(new Header(key, value));
+            line = reader.readLine();
+        }
+        return headers;
     }
 
     private Optional<Rule> handlerFor(Request request) {
@@ -127,6 +144,5 @@ public class Server implements AutoCloseable {
     @Override
     public void close() throws Exception {
         running.set(false);
-
     }
 }

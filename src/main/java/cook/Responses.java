@@ -20,4 +20,18 @@ public class Responses {
             return MESSAGE_WITH_BODY.formatted(statusCode, reason, body.length(), body);
         };
     }
+    
+    public static RequestHandler badRequest(BadRequest exception) {
+        return (Request r) -> {
+            String body = exception.getMessage();
+            return MESSAGE_WITH_BODY.formatted(400, "Bad-request", body.length(), body);
+        };
+    }
+    
+    public static RequestHandler internalServerError(Throwable throwable) {
+        return (Request r) -> {
+            String body = throwable.getMessage();
+            return MESSAGE_WITH_BODY.formatted(5030, "Internal-server-error", body.length(), body);
+        };
+    }
 }

@@ -1,6 +1,6 @@
 package cook;
 
-import static cook.Methods.POST;
+import static cook.Methods.*;
 import static cook.RequestMatchers.uriEqualsCaseSensitive;
 import static cook.RequestMatchers.withMethod;
 import static cook.Responses.fromRequest;

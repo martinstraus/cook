@@ -24,7 +24,6 @@ public class SimpleTest {
 
     @Test
     @Timeout(2)
-    @Disabled
     public void testRunsAndReceivesPing() throws IOException, URISyntaxException, InterruptedException, Exception {
         var port = randomPort();
         try (var server = runServerInAnotherThread(
@@ -51,7 +50,6 @@ public class SimpleTest {
 
     @Test
     @Timeout(2)
-    @Disabled
     public void notFoundForRandomResource() throws IOException, URISyntaxException, InterruptedException, Exception {
         var port = randomPort();
         try (var server = runServerInAnotherThread(port)) {
