@@ -2,8 +2,6 @@ package cook;
 
 import java.io.IOException;
 import static java.util.Collections.emptyList;
-import java.util.concurrent.Executors;
-import static org.junit.jupiter.api.Assertions.fail;
 import org.junit.jupiter.api.Test;
 import static org.mockito.Mockito.*;
 
