@@ -54,8 +54,6 @@ public class Server implements AutoCloseable {
             } catch (InterruptedException ex) {
 
             }
-        } finally {
-            callback.finished();
         }
     }
 

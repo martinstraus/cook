@@ -3,6 +3,7 @@ package cook;
 import java.io.IOException;
 import static java.util.Collections.emptyList;
 import java.util.concurrent.Executors;
+import static org.junit.jupiter.api.Assertions.fail;
 import org.junit.jupiter.api.Test;
 import static org.mockito.Mockito.*;
 
@@ -13,19 +14,20 @@ public class CallbacksTest {
         var callback = mock(Callback.class);
         try (var server = new Server(8080, 1, callback, emptyList())) {
             runServerInAnotherThread(server);
+            Thread.sleep(100);
         }
         verify(callback, times(1)).started();
-        verify(callback, times(1)).finished();
     }
 
     private void runServerInAnotherThread(Server server) {
-        Executors.newFixedThreadPool(1).submit(() -> {
+        Runnable task = () -> {
             try {
                 server.run();
             } catch (IOException ex) {
 
             }
-        });
+        };
+        new Thread(task, "CallbacksTest server").start();
     }
 
 }

@@ -4,6 +4,4 @@ public interface Callback {
     
     void started();
     
-    void finished();
-    
 }

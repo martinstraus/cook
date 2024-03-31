@@ -6,10 +6,5 @@ public class NoOpCallback implements Callback {
     public void started() {
         
     }
-
-    @Override
-    public void finished() {
-        
-    }
     
 }
