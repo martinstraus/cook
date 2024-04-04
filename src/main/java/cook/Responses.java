@@ -31,7 +31,7 @@ public class Responses {
     public static RequestHandler internalServerError(Throwable throwable) {
         return (Request r) -> {
             String body = throwable.getMessage();
-            return MESSAGE_WITH_BODY.formatted(5030, "Internal-server-error", body.length(), body);
+            return MESSAGE_WITH_BODY.formatted(503, "Internal-server-error", body.length(), body);
         };
     }
 }
